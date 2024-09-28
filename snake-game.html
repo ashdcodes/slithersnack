@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slither & Snack</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
+            font-family: 'Arial', sans-serif;
+            color: #333;
+        }
+        #gameContainer {
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #34495e;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            border: 3px solid #34495e;
+            border-radius: 10px;
+        }
+        #instructions {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #f5f7fa;
+            border-radius: 10px;
+        }
+        #startButton {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        #startButton:hover {
+            background-color: #2980b9;
+        }
+        #score, #highScore {
+            font-size: 24px;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        #speedSelector {
+            margin: 10px 0;
+        }
+        #speedSelector label {
+            margin-right: 10px;
+        }
+        #speedSelector select {
+            padding: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>Slither & Snack</h1>
+        <div id="instructions">
+            <h2>How to Play</h2>
+            <p>Use arrow keys to guide your snake.</p>
+            <p>Eat apples to grow and increase your score.</p>
+            <p>Avoid hitting the walls or your own tail!</p>
+            <div id="speedSelector">
+                <label for="speed">Select Speed:</label>
+                <select id="speed">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <button id="startButton">Start Game</button>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400" style="display: none;"></canvas>
+        <div id="score" style="display: none;">Score: 0</div>
+        <div id="highScore">Highest Score: 0</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const instructionsDiv = document.getElementById('instructions');
+        const startButton = document.getElementById('startButton');
+        const scoreDiv = document.getElementById('score');
+        const highScoreDiv = document.getElementById('highScore');
+        const speedSelector = document.getElementById('speed');
+
+        const gridSize = 20;
+        const tileCount = 20;
+        let snake = [{ x: 10, y: 10 }];
+        let food = { x: 15, y: 15 };
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let highScore = 0;
+        let gameStarted = false;
+        let gameSpeed = 100; // Default speed (medium)
+
+        startButton.addEventListener('click', startGame);
+
+        function startGame() {
+            gameStarted = true;
+            instructionsDiv.style.display = 'none';
+            canvas.style.display = 'block';
+            scoreDiv.style.display = 'block';
+            setGameSpeed();
+            drawGame();
+        }
+
+        function setGameSpeed() {
+            switch (speedSelector.value) {
+                case 'easy':
+                    gameSpeed = 150;
+                    break;
+                case 'medium':
+                    gameSpeed = 100;
+                    break;
+                case 'hard':
+                    gameSpeed = 50;
+                    break;
+            }
+        }
+
+        function drawGame() {
+            clearCanvas();
+            moveSnake();
+            drawSnake();
+            drawFood();
+            updateScore();
+
+            if (checkCollision()) {
+                gameOver();
+                return;
+            }
+
+            setTimeout(drawGame, gameSpeed);
+        }
+
+        function clearCanvas() {
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#e0eafc');
+            gradient.addColorStop(1, '#cfdef3');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < 100; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * canvas.width, canvas.height);
+                ctx.lineTo(Math.random() * canvas.width, canvas.height - Math.random() * 20);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${Math.random() * 0.3})`;
+                ctx.stroke();
+            }
+        }
+
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                generateFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                if (index === 0) {
+                    ctx.fillStyle = '#34495e';
+                    ctx.beginPath();
+                    ctx.arc((segment.x * gridSize) + (gridSize / 2), (segment.y * gridSize) + (gridSize / 2), gridSize / 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc((segment.x * gridSize) + (gridSize / 3), (segment.y * gridSize) + (gridSize / 3), gridSize / 8, 0, 2 * Math.PI);
+                    ctx.arc((segment.x * gridSize) + (2 * gridSize / 3), (segment.y * gridSize) + (gridSize / 3), gridSize / 8, 0, 2 * Math.PI);
+                    ctx.fill();
+                } else if (index === snake.length - 1) {
+                    ctx.fillStyle = '#7f8c8d';
+                    ctx.beginPath();
+                    ctx.moveTo(segment.x * gridSize, segment.y * gridSize);
+                    ctx.lineTo((segment.x + 1) * gridSize, segment.y * gridSize);
+                    ctx.lineTo((segment.x + 0.5) * gridSize, (segment.y + 1) * gridSize);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = '#3498db';
+                    ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                }
+            });
+        }
+
+        function drawFood() {
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc((food.x * gridSize) + (gridSize / 2), (food.y * gridSize) + (gridSize / 2), gridSize / 2.5, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.fillStyle = '#795548';
+            ctx.fillRect((food.x * gridSize) + (gridSize / 2) - 1, food.y * gridSize, 2, gridSize / 3);
+            
+            ctx.fillStyle = '#27ae60';
+            ctx.beginPath();
+            ctx.ellipse((food.x * gridSize) + (gridSize / 2) + 3, (food.y * gridSize) + (gridSize / 4), gridSize / 4, gridSize / 8, Math.PI / 4, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function updateScore() {
+            scoreDiv.textContent = `Score: ${score}`;
+            if (score > highScore) {
+                highScore = score;
+                highScoreDiv.textContent = `Highest Score: ${highScore}`;
+            }
+        }
+
+        function generateFood() {
+            food.x = Math.floor(Math.random() * tileCount);
+            food.y = Math.floor(Math.random() * tileCount);
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+            return (
+                head.x < 0 || head.x >= tileCount ||
+                head.y < 0 || head.y >= tileCount ||
+                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
+            );
+        }
+
+        function gameOver() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = '40px Arial';
+            ctx.fillText('Game Over!', canvas.width / 2 - 100, canvas.height / 2 - 40);
+            ctx.font = '20px Arial';
+            ctx.fillText(`Final Score: ${score}`, canvas.width / 2 - 60, canvas.height / 2);
+            ctx.fillText(`Highest Score: ${highScore}`, canvas.width / 2 - 70, canvas.height / 2 + 30);
+            ctx.fillText('Press Space to Restart', canvas.width / 2 - 100, canvas.height / 2 + 70);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' && checkCollision()) {
+                snake = [{ x: 10, y: 10 }];
+                food = { x: 15, y: 15 };
+                dx = 0;
+                dy = 0;
+                score = 0;
+                gameStarted = false;
+                instructionsDiv.style.display = 'block';
+                canvas.style.display = 'none';
+                scoreDiv.style.display = 'none';
+            }
+            if (!gameStarted) return;
+            switch (e.key) {
+                case 'ArrowUp': if (dy === 0) { dx = 0; dy = -1; } break;
+                case 'ArrowDown': if (dy === 0) { dx = 0; dy = 1; } break;
+                case 'ArrowLeft': if (dx === 0) { dx = -1; dy = 0; } break;
+                case 'ArrowRight': if (dx === 0) { dx = 1; dy = 0; } break;
+            }
+        });
+    </script>
+</body>
+</html>
